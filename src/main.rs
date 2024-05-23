@@ -1,9 +1,8 @@
 use std::{collections::HashSet, io::Cursor};
-
 use isahc::ReadResponseExt;
-use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey};
+use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Validation};
 use serde::{Serialize, Deserialize};
-use rocket::{get, http::{Header, Status}, launch, response::Responder, routes, Response, State};
+use rocket::{get, http::{CookieJar, Header, Status}, launch, response::Responder, routes, Response, State};
 use string_tools::{get_all_after, get_all_between_strict};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -90,7 +89,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for JwtToken {
 }
 
 #[get("/login-callback?<ticket>")]
-fn login_callback(key: &State<EncodingKey>, ticket: String) -> Result<JwtToken, LoginCallbackError> {
+fn login_callback(keys: &State<(EncodingKey, DecodingKey)>, ticket: String) -> Result<JwtToken, LoginCallbackError> {
     use LoginCallbackError::*;
 
     // Send validate request
@@ -159,16 +158,62 @@ fn login_callback(key: &State<EncodingKey>, ticket: String) -> Result<JwtToken, 
         given_name,
         family_name,
     };
-    let token = jsonwebtoken::encode(&jsonwebtoken::Header::new(Algorithm::ES256), &claim, key).map_err(CantGenerateToken)?;
+    let token = jsonwebtoken::encode(&jsonwebtoken::Header::new(Algorithm::ES256), &claim, &keys.0).map_err(CantGenerateToken)?;
 
     Ok(JwtToken { token, max_age })
 }
 
+enum VerificationError {
+    NotAuthenticated,
+    InvalidToken(jsonwebtoken::errors::Error),
+}
+
+impl <'r, 'o: 'r> Responder<'r, 'o> for VerificationError {
+    fn respond_to(self, _: &'r rocket::Request<'_>) -> rocket::response::Result<'o> {
+        let (status, body) = match self {
+            VerificationError::NotAuthenticated => (Status::Unauthorized, String::from("Not authenticated")),
+            VerificationError::InvalidToken(e) => (Status::Forbidden, format!("Invalid token: {e}")),
+        };
+        Ok(Response::build()
+            .status(status)
+            .sized_body(body.len(), Cursor::new(body))
+            .finalize())
+    }
+}
+
+struct SuccessfulVerification(Claims);
+
+impl <'r, 'o: 'r> Responder<'r, 'o> for SuccessfulVerification {
+    fn respond_to(self, _: &'r rocket::Request<'_>) -> rocket::response::Result<'o> {
+        let response = Response::build()
+            .status(Status::Ok)
+            .header(Header::new("X-Insa-Auth-Email", self.0.email))
+            .header(Header::new("X-Insa-Auth-Uid", self.0.uid))
+            .header(Header::new("X-Insa-Auth-Uid-Number", self.0.uid_number.to_string()))
+            .header(Header::new("X-Insa-Auth-Groups", self.0.groups.join(",")))
+            .header(Header::new("X-Insa-Auth-Given-Name", self.0.given_name))
+            .header(Header::new("X-Insa-Auth-Family-Name", self.0.family_name))
+            .finalize();
+        Ok(response)
+    }
+}
+
+#[get("/verify")]
+fn verify(keys: &State<(EncodingKey, DecodingKey)>, cookies: &CookieJar<'_>) -> Result<SuccessfulVerification, VerificationError> {
+    let token_cookie = cookies.get("token").ok_or(VerificationError::NotAuthenticated)?;
+    let token = token_cookie.value();
+    let data = jsonwebtoken::decode::<Claims>(token, &keys.1, &Validation::new(Algorithm::ES256)).map_err(VerificationError::InvalidToken)?;
+
+    Ok(SuccessfulVerification(data.claims))
+}
+
 #[launch]
 fn rocket() -> _ {
-    let private_key = std::fs::read("pkcs8.pem").expect("Failed to read private key");
+    let private_key = std::fs::read("private.pem").expect("Failed to read private key");
+    let public_key = std::fs::read("public.pem").expect("Failed to read public key");
     let encoding_key: EncodingKey = EncodingKey::from_ec_pem(&private_key).expect("Invalid private key");
+    let decoding_key: DecodingKey = DecodingKey::from_ec_pem(&public_key).expect("Invalid public key");
     rocket::build()
-        .manage(encoding_key)
-        .mount("/", routes![login_callback])
+        .manage((encoding_key, decoding_key))
+        .mount("/", routes![login_callback, verify])
 }
