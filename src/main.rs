@@ -24,7 +24,7 @@ const VALIDATE_URL: &str = "https://cas.insa-rouen.fr/cas/p3/serviceValidate?ser
 const VALIDATE_URL: &str = "https://cas.insa-rouen.fr/cas/p3/serviceValidate?service=https%3A%2F%2Finsagenda.pages.insa-rouen.fr%2Flogin%2Fglobal-local&ticket=";
 
 #[cfg(not(debug_assertions))]
-const DOMAIN: &str = "auth.insa.lol";
+const DOMAIN: &str = "insa.lol";
 #[cfg(debug_assertions)]
 const DOMAIN: &str = "localhost";
 
