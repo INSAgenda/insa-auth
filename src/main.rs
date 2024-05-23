@@ -28,7 +28,10 @@ const DOMAIN: &str = "auth.insa.lol";
 #[cfg(debug_assertions)]
 const DOMAIN: &str = "localhost";
 
-// https://cas.insa-rouen.fr/cas/login?service=https://insagenda.pages.insa-rouen.fr/login/global-local
+#[cfg(not(debug_assertions))]
+const LOGIN_URL: &str = "https://cas.insa-rouen.fr/cas/login?service=https://insagenda.pages.insa-rouen.fr/login/global";
+#[cfg(debug_assertions)]
+const LOGIN_URL: &str = "https://cas.insa-rouen.fr/cas/login?service=https://insagenda.pages.insa-rouen.fr/login/global-local";
 
 enum LoginCallbackError {
     CasUnreachable,
@@ -71,6 +74,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for LoginCallbackError {
 struct JwtToken {
     token: String,
     max_age: usize,
+    next: Option<String>,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for JwtToken {
@@ -79,17 +83,20 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for JwtToken {
         let max_age = self.max_age;
 
         let value = format!("token={token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={max_age}; Domain=.{DOMAIN}");
-        let response = Response::build()
-            .status(Status::Ok)
-            .header(Header::new("Set-Cookie", value))
-            .finalize();
-
-        Ok(response)
+        let mut response = Response::build();
+        let response = response.status(Status::Ok)
+            .header(Header::new("Set-Cookie", value));
+        if let Some(next) = self.next {
+            // This could be a nice open-redirect vulnerability here but it actually can't be exploited
+            response.status(Status::SeeOther);
+            response.header(Header::new("Location", next));
+        }
+        Ok(response.finalize())
     }
 }
 
 #[get("/login-callback?<ticket>")]
-fn login_callback(keys: &State<(EncodingKey, DecodingKey)>, ticket: String) -> Result<JwtToken, LoginCallbackError> {
+fn login_callback(keys: &State<(EncodingKey, DecodingKey)>, ticket: String, cookies: &CookieJar<'_>) -> Result<JwtToken, LoginCallbackError> {
     use LoginCallbackError::*;
 
     // Send validate request
@@ -128,6 +135,12 @@ fn login_callback(keys: &State<(EncodingKey, DecodingKey)>, ticket: String) -> R
         .ok_or(MissingFamilyName)?
         .to_string();
 
+    let mut groups = HashSet::new();
+    while let Some(official_group) = get_all_between_strict(&xml, "<cas:supannAffectation>", "</cas:supannAffectation>") {
+        groups.insert(official_group.to_string());
+        xml = get_all_after(&xml, "</cas:supannAffectation>").to_string();
+    }
+
     // Check banned users
     if [
         "tom.poget@insa-rouen.fr",
@@ -139,13 +152,7 @@ fn login_callback(keys: &State<(EncodingKey, DecodingKey)>, ticket: String) -> R
         return Err(UserAccountDeleted);
     }
 
-    // Get groups
-    let mut groups = HashSet::new();
-    while let Some(official_group) = get_all_between_strict(&xml, "<cas:supannAffectation>", "</cas:supannAffectation>") {
-        groups.insert(official_group.to_string());
-        xml = get_all_after(&xml, "</cas:supannAffectation>").to_string();
-    }
-
+    // Generate token
     let utc_now = chrono::Utc::now().timestamp() as usize;
     let max_age = 6 * 30 * 24 * 60 * 60;
     let claim = Claims {
@@ -160,7 +167,11 @@ fn login_callback(keys: &State<(EncodingKey, DecodingKey)>, ticket: String) -> R
     };
     let token = jsonwebtoken::encode(&jsonwebtoken::Header::new(Algorithm::ES256), &claim, &keys.0).map_err(CantGenerateToken)?;
 
-    Ok(JwtToken { token, max_age })
+    Ok(JwtToken {
+        token,
+        max_age,
+        next: cookies.get("next").map(|c| c.value().to_string()),
+    })
 }
 
 enum VerificationError {
@@ -207,6 +218,27 @@ fn verify(keys: &State<(EncodingKey, DecodingKey)>, cookies: &CookieJar<'_>) -> 
     Ok(SuccessfulVerification(data.claims))
 }
 
+struct LoginResponse {
+    next: Option<String>,
+}
+
+impl <'r, 'o: 'r> Responder<'r, 'o> for LoginResponse {
+    fn respond_to(self, _: &'r rocket::Request<'_>) -> rocket::response::Result<'o> {
+        let mut response = Response::build();
+        let response = response.status(Status::SeeOther)
+            .header(Header::new("Location", LOGIN_URL));
+        if let Some(next) = self.next {
+            response.header(Header::new("Set-Cookie", format!("next={next}; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.{DOMAIN}; Max-Age=300")));
+        }
+        Ok(response.finalize())
+    }
+}
+
+#[get("/login?<next>")]
+fn login(next: Option<String>) -> LoginResponse {
+    LoginResponse { next }
+}
+
 #[launch]
 fn rocket() -> _ {
     let private_key = std::fs::read("private.pem").expect("Failed to read private key");
@@ -215,5 +247,5 @@ fn rocket() -> _ {
     let decoding_key: DecodingKey = DecodingKey::from_ec_pem(&public_key).expect("Invalid public key");
     rocket::build()
         .manage((encoding_key, decoding_key))
-        .mount("/", routes![login_callback, verify])
+        .mount("/", routes![login_callback, verify, login])
 }
