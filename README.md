@@ -46,8 +46,6 @@ server {
     
     location /private/ {
         auth_request /auth;
-        auth_request_set $auth_status $upstream_status;
-
         auth_request_set $insa_auth_email $upstream_http_x_insa_auth_email;
         auth_request_set $insa_auth_uid $upstream_http_x_insa_auth_uid;
         auth_request_set $insa_auth_uid_number $upstream_http_x_insa_auth_uid_number;
