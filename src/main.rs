@@ -79,7 +79,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for JwtToken {
         let token = self.token;
         let max_age = self.max_age;
 
-        let value = format!("token={token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={max_age}; Domain={DOMAIN}");
+        let value = format!("token={token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={max_age}; Domain=.{DOMAIN}");
         let response = Response::build()
             .status(Status::Ok)
             .header(Header::new("Set-Cookie", value))
