@@ -28,19 +28,20 @@ struct Claims {
 }
 
 #[cfg(not(debug_assertions))]
-pub const VALIDATE_URL: &str = "https://cas.insa-rouen.fr/cas/p3/serviceValidate?service=https%3A%2F%2Finsagenda.pages.insa-rouen.fr%2Flogin%2Fglobal&ticket=";
-#[cfg(debug_assertions)]
-pub const VALIDATE_URL: &str = "https://cas.insa-rouen.fr/cas/p3/serviceValidate?service=https%3A%2F%2Finsagenda.pages.insa-rouen.fr%2Flogin%2Fglobal-local&ticket=";
+mod constants {
+    pub const VALIDATE_URL: &str = "https://cas.insa-rouen.fr/cas/p3/serviceValidate?service=https%3A%2F%2Finsagenda.pages.insa-rouen.fr%2Flogin%2Fglobal&ticket=";
+    pub const DOMAIN: &str = "insa.lol";
+    pub const LOGIN_URL: &str = "https://cas.insa-rouen.fr/cas/login?service=https://insagenda.pages.insa-rouen.fr/login/global";
+}
 
-#[cfg(not(debug_assertions))]
-pub const DOMAIN: &str = "insa.lol";
 #[cfg(debug_assertions)]
-pub const DOMAIN: &str = "localhost";
+mod constants {
+    pub const VALIDATE_URL: &str = "https://cas.insa-rouen.fr/cas/p3/serviceValidate?service=https%3A%2F%2Finsagenda.pages.insa-rouen.fr%2Flogin%2Fglobal-local&ticket=";
+    pub const DOMAIN: &str = "localhost";
+    pub const LOGIN_URL: &str = "https://cas.insa-rouen.fr/cas/login?service=https://insagenda.pages.insa-rouen.fr/login/global-local";
+}
 
-#[cfg(not(debug_assertions))]
-pub const LOGIN_URL: &str = "https://cas.insa-rouen.fr/cas/login?service=https://insagenda.pages.insa-rouen.fr/login/global";
-#[cfg(debug_assertions)]
-pub const LOGIN_URL: &str = "https://cas.insa-rouen.fr/cas/login?service=https://insagenda.pages.insa-rouen.fr/login/global-local";
+use constants::*;
 
 #[launch]
 fn rocket() -> _ {
