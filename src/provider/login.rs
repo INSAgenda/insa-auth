@@ -29,7 +29,9 @@ pub async fn provider_login(keys: &State<(EncodingKey, DecodingKey)>, cookies: &
             let cleaned_service = service.split_once('?').map(|(s, _)| s).unwrap_or(&service).trim_end_matches('/');
             TICKETS.write().await.insert(ticket.clone(), (now(), cleaned_service.to_owned(), claims.0));    
 
-            ProviderLoginResponse(format!("{service}?ticket={ticket}"))
+            let sep = if service.contains('?') { "&" } else { "?" };
+            
+            ProviderLoginResponse(format!("{service}{sep}ticket={ticket}"))
         },
         Err(_) => {
             let this_url = format!("/cas/login?service={}", urlencoding::encode(&service));
