@@ -26,7 +26,8 @@ pub async fn provider_login(keys: &State<(EncodingKey, DecodingKey)>, cookies: &
                 ticket.push((rand::random::<u8>() % 26 + 97) as char);
             }
             
-            TICKETS.write().await.insert(ticket.clone(), (now(), service.clone(), claims.0));    
+            let cleaned_service = service.split_once('?').map(|(s, _)| s).unwrap_or(&service).trim_end_matches('/');
+            TICKETS.write().await.insert(ticket.clone(), (now(), cleaned_service.to_owned(), claims.0));    
 
             ProviderLoginResponse(format!("{service}?ticket={ticket}"))
         },

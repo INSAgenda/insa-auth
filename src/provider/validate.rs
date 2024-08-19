@@ -82,8 +82,9 @@ pub async fn provider_validate(ticket: String, service: String) -> ProviderValid
 
     match tickets.remove(&ticket) {
         Some((_, expected, claims)) => {
-            if expected != service {
-                return ProviderValidateResponse::ServiceMismatch { expected, got: service };
+            let cleaned_service = service.split_once('?').map(|(s, _)| s).unwrap_or(&service).trim_end_matches('/');
+            if expected != cleaned_service {
+                return ProviderValidateResponse::ServiceMismatch { expected, got: cleaned_service.to_owned() };
             }
             ProviderValidateResponse::Ok(claims)
         },
