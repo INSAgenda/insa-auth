@@ -1,4 +1,13 @@
-A JWT-based authentification system for unofficial INSA Rouen's services.
+A JWT-based authentification system for [unofficial INSA Rouen's services](https://insa.lol/).
+
+Provides a simple CAS server.
+
+## Generate crypto keys
+
+```bash
+openssl ecparam -genkey -noout -name prime256v1 | openssl pkcs8 -topk8 -nocrypt -out private.pem
+openssl pkey -in private.pem -pubout -out public.pem
+```
 
 ## Put an entire static website behind auth using nginx
 

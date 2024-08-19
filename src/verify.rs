@@ -18,7 +18,7 @@ impl <'r, 'o: 'r> Responder<'r, 'o> for VerificationError {
     }
 }
 
-pub struct SuccessfulVerification(Claims);
+pub struct SuccessfulVerification(pub Claims);
 
 impl <'r, 'o: 'r> Responder<'r, 'o> for SuccessfulVerification {
     fn respond_to(self, _: &'r rocket::Request<'_>) -> rocket::response::Result<'o> {

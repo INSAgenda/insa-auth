@@ -13,15 +13,17 @@ pub use verify_mod::*;
 #[path ="login.rs"]
 mod login_mod;
 pub use login_mod::*;
+mod provider;
+pub use provider::*;
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims {
+pub struct Claims {
     exp: usize, // Expiration time (as UTC timestamp)
     iat: usize, // Issued at (as UTC timestamp)
 
     email: String, // firstname.name@insa-rouen.fr
-    uid: String, // 167900
-    uid_number: usize, // fname
+    uid: String, // fname
+    uid_number: usize, // 167900
     groups: Vec<String>, // [ad-etudiants, etudiants, etudiants-cve ...]
     given_name: String, // Firstname
     family_name: String, // Name
@@ -43,6 +45,11 @@ mod constants {
 
 use constants::*;
 
+pub fn now() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+}
+
 #[launch]
 fn rocket() -> _ {
     let private_key = std::fs::read("private.pem").expect("Failed to read private key");
@@ -51,5 +58,5 @@ fn rocket() -> _ {
     let decoding_key: DecodingKey = DecodingKey::from_ec_pem(&public_key).expect("Invalid public key");
     rocket::build()
         .manage((encoding_key, decoding_key))
-        .mount("/", routes![login_callback, verify, login])
+        .mount("/", routes![login_callback, verify, login, provider_login, provider_validate])
 }
