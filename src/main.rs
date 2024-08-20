@@ -1,6 +1,7 @@
 pub use std::{collections::HashSet, io::Cursor};
 pub use isahc::ReadResponseExt;
 pub use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Validation};
+use rocket::{response::Redirect, uri};
 pub use serde::{Serialize, Deserialize};
 pub use rocket::{get, http::{CookieJar, Header, Status}, launch, response::Responder, routes, Response, State};
 pub use string_tools::{get_all_after, get_all_between_strict};
@@ -50,6 +51,11 @@ pub fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
 }
 
+#[get("/")]
+fn root() -> Redirect {
+    Redirect::to(uri!("https://github.com/INSAgenda/insa-lol"))
+}
+
 #[launch]
 fn rocket() -> _ {
     let private_key = std::fs::read("private.pem").expect("Failed to read private key");
@@ -58,5 +64,5 @@ fn rocket() -> _ {
     let decoding_key: DecodingKey = DecodingKey::from_ec_pem(&public_key).expect("Invalid public key");
     rocket::build()
         .manage((encoding_key, decoding_key))
-        .mount("/", routes![login_callback, verify, login, provider_login, provider_validate])
+        .mount("/", routes![root, login_callback, verify, login, provider_login, provider_validate])
 }
