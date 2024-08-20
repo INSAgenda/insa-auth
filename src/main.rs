@@ -53,7 +53,7 @@ pub fn now() -> u64 {
 
 #[get("/")]
 fn root() -> Redirect {
-    Redirect::to(uri!("https://github.com/INSAgenda/insa-lol"))
+    Redirect::to(uri!("https://github.com/INSAgenda/insa-auth"))
 }
 
 #[launch]
