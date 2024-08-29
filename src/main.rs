@@ -8,14 +8,21 @@ pub use string_tools::{get_all_after, get_all_between_strict};
 
 mod validate;
 pub use validate::*;
-#[path ="verify.rs"]
-mod verify_mod;
-pub use verify_mod::*;
-#[path ="login.rs"]
-mod login_mod;
-pub use login_mod::*;
+
 mod provider;
 pub use provider::*;
+
+#[path = "verify.rs"]
+mod verify_mod;
+pub use verify_mod::*;
+
+#[path = "login.rs"]
+mod login_mod;
+pub use login_mod::*;
+
+#[path = "logout.rs"]
+mod logout_mod;
+pub use logout_mod::*;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
@@ -64,5 +71,5 @@ fn rocket() -> _ {
     let decoding_key: DecodingKey = DecodingKey::from_ec_pem(&public_key).expect("Invalid public key");
     rocket::build()
         .manage((encoding_key, decoding_key))
-        .mount("/", routes![root, login_callback, verify, login, provider_login, provider_validate])
+        .mount("/", routes![root, login_callback, verify, login, logout, provider_login, provider_validate])
 }
