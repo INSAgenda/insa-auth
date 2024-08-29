@@ -53,11 +53,12 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for JwtToken {
         let mut response = Response::build();
         let response = response.status(Status::Ok)
             .header(Header::new("Set-Cookie", value));
-        if let Some(next) = self.next {
-            // This could be a nice open-redirect vulnerability here but it actually can't be exploited
-            response.status(Status::SeeOther);
-            response.header(Header::new("Location", next));
-        }
+        
+        // This could be a nice open-redirect vulnerability here but it actually can't be exploited
+        let next = self.next.unwrap_or_else(|| "/login".to_string());
+        response.status(Status::SeeOther);
+        response.header(Header::new("Location", next));
+        
         Ok(response.finalize())
     }
 }
