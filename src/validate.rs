@@ -80,7 +80,6 @@ pub fn login_callback(keys: &State<(EncodingKey, DecodingKey)>, ticket: String, 
     if let Some(error_code) = get_all_between_strict(&xml, "<cas:authenticationFailure code=\"", "\">") {
         return Err(CasAuthenticationFailed(error_code.to_string()));
     }
-    println!("{}", xml);
 
     let email = get_all_between_strict(&xml, "<cas:mail>", "</cas:mail>")
         .ok_or(MissingEmail)?
