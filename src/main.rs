@@ -24,6 +24,10 @@ pub use login_mod::*;
 mod logout_mod;
 pub use logout_mod::*;
 
+#[path = "spy.rs"]
+mod spy_mod;
+pub use spy_mod::*;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
     exp: usize, // Expiration time (as UTC timestamp)
@@ -71,5 +75,5 @@ fn rocket() -> _ {
     let decoding_key: DecodingKey = DecodingKey::from_ec_pem(&public_key).expect("Invalid public key");
     rocket::build()
         .manage((encoding_key, decoding_key))
-        .mount("/", routes![root, login_callback, verify, login, logout, provider_login, provider_validate])
+        .mount("/", routes![root, login_callback, verify, login, logout, spy, provider_login, provider_validate])
 }
