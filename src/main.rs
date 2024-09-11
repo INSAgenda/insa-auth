@@ -12,10 +12,6 @@ pub use validate::*;
 mod provider;
 pub use provider::*;
 
-#[path = "get_claims.rs"]
-mod get_claims_mod;
-pub use get_claims_mod::*;
-
 #[path = "verify.rs"]
 mod verify_mod;
 pub use verify_mod::*;
@@ -75,5 +71,5 @@ fn rocket() -> _ {
     let decoding_key: DecodingKey = DecodingKey::from_ec_pem(&public_key).expect("Invalid public key");
     rocket::build()
         .manage((encoding_key, decoding_key))
-        .mount("/", routes![root, login_callback, verify, login, logout, provider_login, provider_validate, get_claims])
+        .mount("/", routes![root, login_callback, verify, login, logout, provider_login, provider_validate])
 }
