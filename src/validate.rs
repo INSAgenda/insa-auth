@@ -111,8 +111,7 @@ pub fn login_callback(keys: &State<(EncodingKey, DecodingKey)>, ticket: String, 
     // Check banned users
     if [
         "tom.poget@insa-rouen.fr",
-        "baptiste.hersent@insa-rouen.fr",
-        "michel.vespier@insa-rouen.fr",
+        "baptiste.hersent@insa-rouen.fr"
     ]
     .contains(&email.as_str())
     {
