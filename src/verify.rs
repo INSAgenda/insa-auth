@@ -37,9 +37,12 @@ impl <'r, 'o: 'r> Responder<'r, 'o> for SuccessfulVerification {
 
 #[get("/verify")]
 pub fn verify(keys: &State<(EncodingKey, DecodingKey)>, cookies: &CookieJar<'_>) -> Result<SuccessfulVerification, VerificationError> {
+    let mut rules = Validation::new(Algorithm::ES256);
+    rules.validate_exp = false; // TEMPORARY: Login is broken so we need to this to maintain the service until it's fixed
+
     let token_cookie = cookies.get("token").ok_or(VerificationError::NotAuthenticated)?;
     let token = token_cookie.value();
-    let data = jsonwebtoken::decode::<Claims>(token, &keys.1, &Validation::new(Algorithm::ES256)).map_err(VerificationError::InvalidToken)?;
+    let data = jsonwebtoken::decode::<Claims>(token, &keys.1, &rules).map_err(VerificationError::InvalidToken)?;
 
     Ok(SuccessfulVerification(data.claims))
 }
