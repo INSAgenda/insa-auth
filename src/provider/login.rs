@@ -4,7 +4,7 @@
 use super::*;
 use url::Url;
 
-const WHITELIST: [&str; 1] = [
+const WHITELIST: [&str; 2] = [
     "mastodon.insa.lol",
     "stotra.insa.lol",
 ];
