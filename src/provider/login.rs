@@ -2,21 +2,61 @@
 //! We must redirect the user to their provided callback URL after the login process.
 
 use super::*;
+use url::Url;
 
-pub struct ProviderLoginResponse(String);
+const WHITELIST: [&str; 1] = [
+    "mastodon.insa.lol",
+];
+
+pub enum ProviderLoginResponse {
+    InvalidServiceUrl(url::ParseError),
+    Unauthorized,
+    Next(String)
+}
 
 impl <'r, 'o: 'r> Responder<'r, 'o> for ProviderLoginResponse {
     fn respond_to(self, _: &'r rocket::Request<'_>) -> rocket::response::Result<'o> {
-        let mut response = Response::build();
-        let response = response.status(Status::SeeOther)
-            .header(Header::new("Location", self.0));
-        Ok(response.finalize())
+        match self {
+            ProviderLoginResponse::InvalidServiceUrl(err) => {
+                let mut response = Response::build();
+                let response = response.status(Status::BadRequest)
+                    .header(Header::new("Content-Type", "text/plain"));
+                let body = format!("Invalid service URL: {err}");
+                response.sized_body(body.len(), std::io::Cursor::new(body));
+                Ok(response.finalize())
+            },
+            ProviderLoginResponse::Unauthorized => {
+                let mut response = Response::build();
+                let response = response.status(Status::Unauthorized)
+                    .header(Header::new("Content-Type", "text/plain"));
+                let body = "Unauthorized";
+                response.sized_body(body.len(), std::io::Cursor::new(body));
+                Ok(response.finalize())
+            },
+            ProviderLoginResponse::Next(next) => {
+                let mut response = Response::build();
+                let response = response.status(Status::SeeOther)
+                    .header(Header::new("Location", next));
+                Ok(response.finalize())
+            },
+        }
     }
 }
 
 #[get("/cas/login?<service>")]
 pub async fn provider_login(keys: &State<(EncodingKey, DecodingKey)>, cookies: &CookieJar<'_>, service: String) -> ProviderLoginResponse {
-    // TODO: Add a whitelist of services
+    // Verify service URL
+    let url = match Url::parse(&service) {
+        Ok(url) => url,
+        Err(e) => return ProviderLoginResponse::InvalidServiceUrl(e),
+    };
+    let host_str = match url.host_str() {
+        Some(host) => host,
+        None => return ProviderLoginResponse::InvalidServiceUrl(url::ParseError::EmptyHost),
+    };
+    if !WHITELIST.contains(&host_str) {
+        return ProviderLoginResponse::Unauthorized;
+    }
 
     match verify(keys, cookies) {
         Ok(claims) => {
@@ -31,12 +71,12 @@ pub async fn provider_login(keys: &State<(EncodingKey, DecodingKey)>, cookies: &
 
             let sep = if service.contains('?') { "&" } else { "?" };
             
-            ProviderLoginResponse(format!("{service}{sep}ticket={ticket}"))
+            ProviderLoginResponse::Next(format!("{service}{sep}ticket={ticket}"))
         },
         Err(_) => {
             let this_url = format!("/cas/login?service={}", urlencoding::encode(&service));
             let next = format!("/login?next={}", urlencoding::encode(&this_url));
-            ProviderLoginResponse(next)
+            ProviderLoginResponse::Next(next)
         },
     }
 }
