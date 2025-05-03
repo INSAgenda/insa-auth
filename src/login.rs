@@ -23,12 +23,20 @@ impl <'r, 'o: 'r> Responder<'r, 'o> for LoginResponse {
                 Ok(response.finalize())
             }
             LoginResponse::Login { next } => {
+                // let mut response = Response::build();
+                // let response = response.status(Status::SeeOther)
+                //     .header(Header::new("Location", LOGIN_URL));
+                // if let Some(next) = next {
+                //     response.header(Header::new("Set-Cookie", format!("next={next}; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.{DOMAIN}; Max-Age=300")));
+                // }
+                // Ok(response.finalize())
+
+                // TEMPORARY
                 let mut response = Response::build();
-                let response = response.status(Status::SeeOther)
-                    .header(Header::new("Location", LOGIN_URL));
-                if let Some(next) = next {
-                    response.header(Header::new("Set-Cookie", format!("next={next}; Path=/; HttpOnly; Secure; SameSite=Lax; Domain=.{DOMAIN}; Max-Age=300")));
-                }
+                let body = include_str!("message.html");
+                let response = response.status(Status::Ok)
+                    .header(Header::new("Content-Type", "text/html"))
+                    .sized_body(body.len(), std::io::Cursor::new(body));
                 Ok(response.finalize())
             },
         }
