@@ -6,6 +6,7 @@ use url::Url;
 
 const WHITELIST: [&str; 1] = [
     "mastodon.insa.lol",
+    "stotra.insa.lol",
 ];
 
 pub enum ProviderLoginResponse {
